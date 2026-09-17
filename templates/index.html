@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Job / Serial Lookup</title>
+    <style>
+      :root {
+        --bg: #f3f6fb;
+        --card: #ffffff;
+        --text: #1f2937;
+        --muted: #4b5563;
+        --line: #e5e7eb;
+        --blue: #2563eb;
+        --green: #16a34a;
+        --green-soft: #dcfce7;
+        --blue-soft: #dbeafe;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 40px 18px;
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin-bottom: 24px;
+      }
+
+      .search-wrap {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      input {
+        flex: 1;
+        padding: 14px 16px;
+        font-size: 16px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: white;
+      }
+
+      button {
+        padding: 14px 20px;
+        background: var(--blue);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        opacity: 0.95;
+      }
+
+      .result-card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        margin-bottom: 18px;
+        padding: 18px 20px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: bold;
+        background: var(--blue-soft);
+        color: #1d4ed8;
+      }
+
+      .status-pill {
+        background: var(--green-soft);
+        color: #166534;
+      }
+
+      .summary {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+
+      .details {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .empty {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 18px 20px;
+      }
+
+      a {
+        color: var(--blue);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Job / Serial Lookup</h1>
+
+      <div class="search-wrap">
+        <input
+          id="query"
+          type="text"
+          placeholder="Type a job number or serial number..."
+        />
+        <button onclick="searchData()">Search</button>
+      </div>
+
+      <div id="results"></div>
+    </div>
+
+    <script>
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (ch) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        }[ch]));
+      }
+
+      async function searchData() {
+        const q = document.getElementById("query").value.trim();
+        const resultsEl = document.getElementById("results");
+
+        if (!q) {
+          resultsEl.innerHTML = '<div class="empty">Enter a job number or serial number.</div>';
+          return;
+        }
+
+        const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const data = await response.json();
+
+        if (!data.results || data.results.length === 0) {
+          resultsEl.innerHTML = `<div class="empty">No records found for: ${q}</div>`;
+          return;
+        }
+
+        resultsEl.innerHTML = data.results.map(item => {
+          const details = item.details ? JSON.parse(item.details) : {};
+          const detailText = Object.entries(details).map(([key, value]) => `${escapeHtml(key)}: ${escapeHtml(value)}`).join(" | ") || "No additional details";
+          const sourceUrl = item.source_url || "";
+          const isSafeUrl = /^https?:\/\//i.test(sourceUrl);
+
+          return `
+            <div class="result-card">
+              <div class="meta">
+                <span class="pill">${escapeHtml(item.source)}</span>
+                <span class="pill">${escapeHtml(item.record_type)}</span>
+                <span class="pill status-pill">${escapeHtml(item.status || 'Unknown')}</span>
+              </div>
+
+              <div class="summary">${escapeHtml(item.summary || 'No summary available')}</div>
+
+              <div class="details">
+                <strong>Job:</strong> ${escapeHtml(item.job_number || 'N/A')}<br />
+                <strong>Serial:</strong> ${escapeHtml(item.serial_number || 'N/A')}<br />
+                <strong>Details:</strong> ${detailText}<br />
+                ${isSafeUrl ? `<strong>Source:</strong> <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceUrl)}</a>` : ''}
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      document.getElementById("query").addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+          searchData();
+        }
+      });
+    </script>
+  </body>
+</html>
