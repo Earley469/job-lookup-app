@@ -112,6 +112,16 @@
         padding: 18px 20px;
       }
 
+      .warning {
+        background: #fef3c7;
+        border: 1px solid #fbbf24;
+        color: #92400e;
+        border-radius: 10px;
+        padding: 12px 16px;
+        margin-bottom: 14px;
+        font-size: 14px;
+      }
+
       a {
         color: var(--blue);
       }
@@ -125,7 +135,7 @@
         <input
           id="query"
           type="text"
-          placeholder="Type a job number or serial number..."
+          placeholder="Type a job number, serial number, or assembly number..."
         />
         <button onclick="searchData()">Search</button>
       </div>
@@ -156,16 +166,28 @@
         const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
         const data = await response.json();
 
+        const warningHtml = (data.unavailable_paths && data.unavailable_paths.length > 0)
+          ? `<div class="warning">Could not reach: ${data.unavailable_paths.map(escapeHtml).join(", ")}
+             (check that the network drive is connected)</div>`
+          : "";
+
         if (!data.results || data.results.length === 0) {
-          resultsEl.innerHTML = `<div class="empty">No records found for: ${q}</div>`;
+          resultsEl.innerHTML = warningHtml + `<div class="empty">No records found for: ${escapeHtml(q)}</div>`;
           return;
         }
 
-        resultsEl.innerHTML = data.results.map(item => {
+        resultsEl.innerHTML = warningHtml + data.results.map(item => {
           const details = item.details ? JSON.parse(item.details) : {};
           const detailText = Object.entries(details).map(([key, value]) => `${escapeHtml(key)}: ${escapeHtml(value)}`).join(" | ") || "No additional details";
           const sourceUrl = item.source_url || "";
           const isSafeUrl = /^https?:\/\//i.test(sourceUrl);
+
+          let sourceLine = "";
+          if (isSafeUrl) {
+            sourceLine = `<strong>Source:</strong> <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceUrl)}</a>`;
+          } else if (sourceUrl) {
+            sourceLine = `<strong>Location:</strong> ${escapeHtml(sourceUrl)}`;
+          }
 
           return `
             <div class="result-card">
@@ -181,7 +203,7 @@
                 <strong>Job:</strong> ${escapeHtml(item.job_number || 'N/A')}<br />
                 <strong>Serial:</strong> ${escapeHtml(item.serial_number || 'N/A')}<br />
                 <strong>Details:</strong> ${detailText}<br />
-                ${isSafeUrl ? `<strong>Source:</strong> <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceUrl)}</a>` : ''}
+                ${sourceLine}
               </div>
             </div>
           `;

@@ -30,10 +30,34 @@ Search for any of the seeded sample values:
 - `JOB-3007`
 - `SN-DEF-7784`
 
+## Network folder search
+
+In addition to the sample database, the app searches network folders configured
+in `config.json`:
+
+```json
+{
+  "network_search_paths": [
+    "I:\\Eng. Jobs",
+    "G:\\Manuals",
+    "I:\\Mechanical"
+  ]
+}
+```
+
+A search matches any folder or file whose *name* contains the query text
+(case-insensitive), up to 6 levels deep under each configured path. It does not
+search inside file contents (e.g. text inside a PDF). If a path isn't reachable
+(e.g. a network drive isn't currently mapped), the app skips it and shows a
+warning in the UI rather than failing the whole search.
+
+Edit `network_search_paths` in `config.json` to match the paths on your network
+— no code changes needed. Add or remove paths as needed.
+
 ## API
 
-- `GET /api/search?q=<job or serial number>` — search records by job number,
-  serial number, summary, source, or details.
+- `GET /api/search?q=<job, serial, or assembly number>` — searches the sample
+  database and the configured network folders, and returns combined results.
 - `GET /api/health` — health check.
 
 ## Security notes
@@ -51,8 +75,13 @@ This app is intended to run on a trusted internal network only:
 ## Next steps
 
 - Replace the sample SQLite data with real connectors (SQL Server, MySQL,
-  ERP/MES, file shares, SharePoint, REST APIs, CSV/Excel imports).
+  ERP/MES, SharePoint, REST APIs, CSV/Excel imports).
+- Add a SolidWorks PDM connector (via its SQL Server database, once the
+  instance name is known) instead of just browsing its vault as a file share.
 - Add authentication (local accounts or Active Directory/LDAP) and
   role-based access.
-- Add document/PDF search and export-to-CSV.
+- Search inside file contents (PDF text, Excel cell values), not just names.
+- Add export-to-CSV.
 - Add per-source dashboard tabs and audit logging.
+- Run on an always-on server/PC (not a laptop) once this needs to be shared
+  with coworkers, not just used locally.
