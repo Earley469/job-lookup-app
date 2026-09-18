@@ -5,10 +5,24 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from connectors.file_search import search_network_folders
+
 app = FastAPI(title="Job / Serial Lookup")
 templates = Jinja2Templates(directory="templates")
 
 DB_PATH = "local_data.db"
+CONFIG_PATH = "config.json"
+
+
+def load_config():
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"network_search_paths": []}
+
+
+CONFIG = load_config()
 
 
 def get_connection():
@@ -135,10 +149,10 @@ async def home(request: Request):
 
 
 @app.get("/api/search")
-async def search_records(q: str = ""):
+def search_records(q: str = ""):
     query = (q or "").strip()
     if not query:
-        return {"query": "", "results": []}
+        return {"query": "", "results": [], "unavailable_paths": []}
 
     search_term = f"%{query}%"
 
@@ -177,7 +191,12 @@ async def search_records(q: str = ""):
             "source_url": row["source_url"]
         })
 
-    return {"query": query, "results": results}
+    file_results, unavailable_paths = search_network_folders(
+        query, CONFIG.get("network_search_paths", [])
+    )
+    results.extend(file_results)
+
+    return {"query": query, "results": results, "unavailable_paths": unavailable_paths}
 
 
 @app.get("/api/health")
