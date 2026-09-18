@@ -125,6 +125,21 @@
       a {
         color: var(--blue);
       }
+
+      .copy-btn {
+        padding: 3px 10px;
+        font-size: 12px;
+        margin-left: 6px;
+        background: white;
+        color: var(--blue);
+        border: 1px solid var(--blue);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .copy-btn:hover {
+        background: var(--blue-soft);
+      }
     </style>
   </head>
   <body>
@@ -163,8 +178,16 @@
           return;
         }
 
-        const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-        const data = await response.json();
+        resultsEl.innerHTML = '<div class="empty">Searching network folders and databases — this can take a few seconds on a slow network share...</div>';
+
+        let data;
+        try {
+          const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+          data = await response.json();
+        } catch (err) {
+          resultsEl.innerHTML = `<div class="empty">Search failed: ${escapeHtml(err.message)}</div>`;
+          return;
+        }
 
         const warningHtml = (data.unavailable_paths && data.unavailable_paths.length > 0)
           ? `<div class="warning">Could not reach: ${data.unavailable_paths.map(escapeHtml).join(", ")}
@@ -186,7 +209,8 @@
           if (isSafeUrl) {
             sourceLine = `<strong>Source:</strong> <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceUrl)}</a>`;
           } else if (sourceUrl) {
-            sourceLine = `<strong>Location:</strong> ${escapeHtml(sourceUrl)}`;
+            sourceLine = `<strong>Location:</strong> ${escapeHtml(sourceUrl)}
+              <button class="copy-btn" data-path="${escapeHtml(sourceUrl)}">Copy path</button>`;
           }
 
           return `
@@ -214,6 +238,20 @@
         if (event.key === "Enter") {
           searchData();
         }
+      });
+
+      document.getElementById("results").addEventListener("click", function (event) {
+        if (!event.target.classList.contains("copy-btn")) {
+          return;
+        }
+        const path = event.target.dataset.path;
+        const originalLabel = event.target.textContent;
+        navigator.clipboard.writeText(path).then(() => {
+          event.target.textContent = "Copied!";
+          setTimeout(() => { event.target.textContent = originalLabel; }, 1500);
+        }).catch(() => {
+          alert("Could not copy automatically. Path:\n" + path);
+        });
       });
     </script>
   </body>
